@@ -1,0 +1,48 @@
+allprojects { project ->
+
+    project.afterEvaluate {
+        if (project == rootProject) {
+            createRootTasks()
+
+            println vimProperty("gradle.build.welcome", "Built with VIM Gradle Plugin")
+
+            if (vimPropertyEnabled("gradle.enable.rtp")) {
+                Eval.me(vimProperty("apply", '[]')).each {
+                    apply from: it
+                }
+            }
+        }
+    }
+}
+
+def createRootTasks() {
+    rootProject.task("vimCheck") {
+        doLast {
+            if (vimPropertyEnabled("gradle.enable.rtp")) {
+                println "VIM RTP Enabled"
+                Eval.me(vimProperty("apply", '[]')).each {
+                    println "Enabled vim-gradle extension script: $it"
+                }
+            }
+            println "Ok"
+        }
+    }
+}
+
+def hasVimProperty(propertyName) {
+    return rootProject.hasProperty("vim.$propertyName")
+}
+
+def vimPropertyEnabled(propertyName) {
+    return vimProperty(propertyName, "0") == "1"
+}
+
+def vimProperty(propertyName, defaultValue) {
+    if (hasVimProperty(propertyName)) {
+        return rootProject.property("vim.$propertyName")
+    } else {
+        return defaultValue
+    }
+}
+
+

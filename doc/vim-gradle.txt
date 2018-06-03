@@ -1,0 +1,131 @@
+*vim-gradle.txt* build your gradle projects without leaving vim
+                                            *vim-gradle* *gradle*
+        _                                            _  _       ~
+__   __(_) _ __ ___           __ _  _ __   __ _   __| || |  ___ ~
+\ \ / /| || '_ ` _ \  _____  / _` || '__| / _` | / _` || | / _ \~
+ \ V / | || | | | | ||_____|| (_| || |   | (_| || (_| || ||  __/~
+  \_/  |_||_| |_| |_|        \__, ||_|    \__,_| \__,_||_| \___|~
+                             |___/                              ~
+
+                    by Henrique Diniz
+                    hdiniz@outlook.com
+
+=================================================================
+CONTENTS                                    *vim-gradle-contents*
+
+    1. Usage ................................. |vim-gradle-usage|
+    2. Requirements ................... |vim-gradle-requirements|
+    3. Configuration ................. |vim-gradle-configuration|
+    4. Commands ........................... |vim-gradle-commands|
+    5. Gradle ............................... |vim-gradle-binary|
+    6. Extensions ....................... |vim-gradle-extensions|
+    7. airline ............................. |vim-gradle-airline|
+
+=================================================================
+1. Usage                                       *vim-gradle-usage*
+
+Open any file belonging to a Gradle project and the vim-gradle
+commands will become available. See |vim-gradle-autoload| >
+
+    :Gradle {args}
+    :Gradle tasks
+<
+=================================================================
+2. Requirements                         *vim-gradle-requirements*
+
+    1. VIM with async job support
+    2. Gradle installation required for some commands.
+        a. If your project has a Gradle Wrapper, Gradle will
+           take care of installing the proper version.
+
+=================================================================
+3. Configuration                       *vim-gradle-configuration*
+
+                                         *g:vim_gradle_autoload*
+g:vim_gradle_autoload
+Default: 1
+
+When a new buffer is open search 'build.gradle' and
+'build.gradle.kts' files up on the directory tree.
+
+If disabled, projects can be loaded via :GradleLoad.
+
+                                         *g:vim_gradle_enable_rtp*
+g:vim_gradle_enable_rtp
+Default: 1
+
+Allows vim-gradle to load additional gradle init script from
+vim-gradle extensions.
+
+                                               *g:vim_gradle_bin*
+g:vim_gradle_bin
+Default: ''
+
+Absolute path to the Gradle binary. Used for out-of-project
+commands and projects without a Gradle Wrapper.
+Overrides |g:vim_gradle_home| and $GRADLE_HOME.
+
+                                              *g:vim_gradle_home*
+g:vim_gradle_home
+Default: ''
+
+Absolute path to a Gradle installation. Used for out-of-project
+commands and projects without a Gradle Wrapper.
+Overrides $GRADLE_HOME.
+
+=================================================================
+4. Commands                                 *vim-gradle-commands*
+
+:Gradle[!] {args}
+
+When executed with the bang (!), the process is synchronous and
+equivalent to running :make {args}. See |make|.
+Otherwise the build is started asynchronously and the output is
+redirected to a temporary buffer.
+
+vim-gradle provides a default |errorformat| so build errors can
+be listed on vim |quickfix|. The default errorformat can be
+overriden or enhanced by vim-gradle extensions.
+See |vim-gradle-errorformat|.
+
+:GradleLoad
+
+Manually loads the Gradle project based on current buffer or
+current directory. Use when autoloading is disabled.
+See |g:vim_gradle_autoload|
+
+:GradleInit {args}
+
+*Requires Gradle installation
+
+Runs gradle init {args} on current directory.
+
+:GradleWrapper {args}
+
+*Requires Gradle installation
+
+Runs gradle wrapper {args} on current directory.
+
+=================================================================
+5. Gradle binary                              *vim-gradle-binary*
+
+The search order for the Gradle binary is as follows:
+
+    1. Gradle Wrapper at project root
+    2. g:vim_gradle_bin
+    3. Gradle home defined by g:vim_gradle_home
+    4. Gradle home defined by environment variable $GRADLE_HOME
+    5. gradle executable on $PATH
+
+=================================================================
+6. Extensions                             *vim-gradle-extensions*
+
+TODO
+
+=================================================================
+7. airline                                   *vim-gradle-airline*
+
+TODO
+
+
+ vim:ft=help:norl:

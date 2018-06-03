@@ -37,6 +37,22 @@ function! s:project.compiler_callback(ch, msg) dict
     endif
 endfunction
 
+function! s:project.create_compilation_window(args)
+    if self.build_buffer == 0
+        below 10new
+        let s:bufnr = bufnr('%')
+        setlocal buftype=nofile nobuflisted noswapfile nonumber nowrap filetype=gradle-build
+        exec 'au BufDelete,BufHidden <buffer> call s:close_compilation_window("'.self.root_folder.'")'
+    else
+        exec bufwinnr(self.build_buffer) . 'wincmd w'
+        exec 'b '.self.build_buffer
+        exec 'normal! ggdG'
+    endif
+    execute 'file ' . substitute(self.root_folder . ': gradle ' . a:args , ' ', '\\ ', 'g')
+    wincmd p
+    return s:bufnr
+endfunction
+
 " }}}
 
 " {{{ Project API
@@ -68,6 +84,12 @@ function! s:create_project(root_folder) abort
 
     let s:projects[a:root_folder] = l:project
     return l:project
+endfunction
+
+function! s:close_compilation_window(root_folder)
+    let l:project = gradle#project#get(a:root_folder)
+    exec 'bd '.l:project.build_buffer
+    let l:project.build_buffer = 0
 endfunction
 
 function! s:wrapper(root_folder)

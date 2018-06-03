@@ -83,22 +83,6 @@ function! s:log(msg)
     echomsg a:msg
 endfunction
 
-function! s:open_compilation_window(project, args)
-    if a:project.build_buffer == 0
-        below 10new
-        let b:gradle_project = a:project
-        let s:bufnr = bufnr('%')
-        setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile nonumber nowrap filetype=gradle-build
-    else
-		exec bufwinnr(a:project.build_buffer) . 'wincmd w'
-        exec 'b '.a:project.build_buffer
-        exec 'normal! ggdG'
-    endif
-    execute 'file ' . substitute(a:project.root_folder . ': gradle ' . a:args , ' ', '\\ ', 'g')
-    wincmd p
-    return s:bufnr
-endfunction
-
 function! s:gradle_home()
     if exists('g:vim_gradle_home')
         return g:vim_gradle_home
@@ -134,13 +118,8 @@ function! s:compile(async, ...) abort
         endif
 
         let l:cmd = s:make_cmd(0) + a:000
-        echom string(l:cmd)
 
-        let l:escaped = substitute(join(l:cmd, ' '), '\\', '\', 'g')
-        let l:escaped = substitute(l:escaped, '\"', '"', 'g')
-        echom l:escaped
-
-        let l:project.build_buffer = s:open_compilation_window(l:project, l:args)
+        let l:project.build_buffer = l:project.create_compilation_window(l:args)
         let l:compile_options['out_buf'] = l:project.build_buffer
         let l:project.build_job = job_start(l:cmd, l:compile_options)
 

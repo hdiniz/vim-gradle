@@ -1,3 +1,5 @@
+Include: include/setup.vader
+
 Given (Project file):
   test-gradle-project/build.gradle
 
@@ -18,4 +20,5 @@ Then (Compilation window is open):
   AssertNotEqual -1, compilation_window
 
   exec ':GradleCloseCompilationWin'
-  exec 'bd '.expand('%:p')
+
+Include: include/cleanup.vader

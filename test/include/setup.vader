@@ -1,0 +1,2 @@
+Execute(setup):
+  let g:vim_gradle_autoload = 1

@@ -21,7 +21,7 @@ endfunction
 function! s:define_buffer_cmds(root_project_folder)
     exec 'compiler gradle'
     command! -buffer -nargs=+ -bang Gradle call s:compile(<bang>0, <f-args>)
-    exec 'command! -buffer GradleCloseCompilationWin call gradle#project#close_compilation_window("'.a:root_project_folder.'")'
+    command! -buffer GradleToggleOutputWin call gradle#project#current().toggle_output_win()
 endfunction
 
 function! gradle#cmd()
@@ -105,28 +105,8 @@ function! s:compile(async, ...) abort
         call s:log('Compiling: ' . l:args)
         exec 'make ' . join(a:000, ' ')
     else
-        let l:compile_options = {
-            \ 'in_mode': 'raw',
-            \ 'out_mode': 'nl',
-            \ 'err_mode': 'nl',
-            \ 'in_io': 'null',
-            \ 'out_io': 'buffer',
-            \ 'err_io': 'null',
-            \ 'stoponexit': 'term',
-            \ 'callback': l:project.compiler_callback,
-            \ }
-
-        if l:project.is_building()
-            call s:log("Please wait until current build is finished")
-            return
-        endif
-
-        let l:cmd = s:make_cmd(0) + a:000
-
-        let l:project.build_buffer = l:project.create_compilation_window(l:args)
-        let l:compile_options['out_buf'] = l:project.build_buffer
-        let l:project.build_job = job_start(l:cmd, l:compile_options)
-
+        let l:cmd = s:make_cmd(0)
+        call l:project.compile(l:cmd, a:000)
     endif
 endfunction
 

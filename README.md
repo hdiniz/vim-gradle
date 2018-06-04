@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/hdiniz/vim-gradle.svg?branch=master)](https://travis-ci.org/hdiniz/vim-gradle)
+
 # vim-gradle
 
 Create, compile and manage your Gradle projects without leaving vim!

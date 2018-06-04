@@ -1,0 +1,42 @@
+Include: include/setup.vader
+
+Given (Project file):
+  test-gradle-project/build.gradle
+
+Do (Compile test task):
+  gf
+  :Gradle -q testVimCompile\<CR>
+
+Then (Output window is open):
+  let project = gradle#project#current()
+  AssertNotEqual 0, project.build_buffer
+  Assert project.is_building()
+
+  while project.is_building()
+    sleep 200m
+  endwhile
+
+  let output_window = bufwinnr(project.build_buffer)
+  AssertNotEqual -1, output_window, "Output window should be open"
+
+Do (Toggle output window):
+  gf
+  :GradleToggleOutputWin\<CR>
+
+Then (Output window is closed):
+  let project = gradle#project#current()
+  let output_window = bufwinnr(project.build_buffer)
+  AssertEqual -1, output_window, "Output window should be closed"
+
+Do (Toggle output window):
+  gf
+  :GradleToggleOutputWin\<CR>
+
+Then (Output window is open and focused):
+  Log bufname('%')
+  let project = gradle#project#current()
+  let output_window = bufwinnr(project.build_buffer)
+  AssertNotEqual -1, output_window, "Output window should be open"
+  AssertEqual winnr(), output_window, "Output window should be in focus"
+
+Include: include/cleanup.vader

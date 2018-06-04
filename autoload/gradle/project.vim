@@ -42,7 +42,7 @@ function! s:project.create_compilation_window(args)
         below 10new
         let s:bufnr = bufnr('%')
         setlocal buftype=nofile nobuflisted noswapfile nonumber nowrap filetype=gradle-build
-        exec 'au BufDelete,BufHidden <buffer> call s:close_compilation_window("'.self.root_folder.'")'
+        exec 'au BufDelete,BufHidden <buffer> call gradle#project#close_compilation_window("'.self.root_folder.'")'
     else
         exec bufwinnr(self.build_buffer) . 'wincmd w'
         exec 'b '.self.build_buffer
@@ -66,7 +66,19 @@ function! gradle#project#get(root_folder) abort
 endfunction
 
 function! gradle#project#current()
-    return gradle#project#get(b:gradle_project_root)
+    if exists('b:gradle_project_root')
+        return gradle#project#get(b:gradle_project_root)
+    else
+        return v:null
+    endif
+endfunction
+
+function! gradle#project#close_compilation_window(root_folder)
+    let l:project = gradle#project#get(a:root_folder)
+    if l:project.build_buffer != 0
+        exec 'bd '.l:project.build_buffer
+        let l:project.build_buffer = 0
+    endif
 endfunction
 
 " }}}
@@ -84,12 +96,6 @@ function! s:create_project(root_folder) abort
 
     let s:projects[a:root_folder] = l:project
     return l:project
-endfunction
-
-function! s:close_compilation_window(root_folder)
-    let l:project = gradle#project#get(a:root_folder)
-    exec 'bd '.l:project.build_buffer
-    let l:project.build_buffer = 0
 endfunction
 
 function! s:wrapper(root_folder)

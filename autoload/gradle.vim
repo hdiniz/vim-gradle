@@ -8,8 +8,7 @@ function! gradle#load_project(root_project_folder) abort
     let l:project = gradle#project#get(a:root_project_folder)
 
     if l:project.cmd() != ''
-        exec 'compiler gradle'
-        command! -buffer -nargs=+ -bang Gradle call s:compile(<bang>0, <f-args>)
+        call s:define_buffer_cmds(a:root_project_folder)
     else
         throw "Gradle command not found"
     endif
@@ -19,6 +18,11 @@ function! gradle#load_project(root_project_folder) abort
     endif
 endfunction
 
+function! s:define_buffer_cmds(root_project_folder)
+    exec 'compiler gradle'
+    command! -buffer -nargs=+ -bang Gradle call s:compile(<bang>0, <f-args>)
+    exec 'command! -buffer GradleCloseCompilationWin call gradle#project#close_compilation_window("'.a:root_project_folder.'")'
+endfunction
 
 function! gradle#cmd()
     if exists('g:vim_gradle_bin')

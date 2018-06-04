@@ -14,6 +14,10 @@ endif
 let g:loaded_gradle = 1
 
 function! s:buffer_enter(auto)
+    if a:auto == 1 && get(g:, "vim_gradle_autoload", 1) == 0
+        return
+    endif
+
     if get(b:, "gradle_project_root", '') != ''
         return
     endif
@@ -74,12 +78,10 @@ function! s:init_project_wrapper(...)
 endfunction
 
 
-if get(g:, "vim_gradle_autoload", 1)
-    augroup gradle
-        autocmd!
-        autocmd BufEnter * call s:buffer_enter(1)
-    augroup END
-endif
+augroup gradle
+    autocmd!
+    autocmd BufEnter * call s:buffer_enter(1)
+augroup END
 
 command! GradleLoad call s:buffer_enter(0)
 command! -nargs=* GradleInit call s:init_project(<f-args>)

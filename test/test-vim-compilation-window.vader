@@ -1,0 +1,21 @@
+Given (Project file):
+  test-gradle-project/build.gradle
+
+Do (Compile test task):
+  gf
+  :Gradle -q testVimCompile\<CR>
+
+Then (Compilation window is open):
+  let project = gradle#project#current()
+  AssertNotEqual 0, project.build_buffer
+  Assert project.is_building()
+
+  while project.is_building()
+    sleep 200m
+  endwhile
+
+  let compilation_window = bufwinnr(project.build_buffer)
+  AssertNotEqual -1, compilation_window
+
+  exec ':GradleCloseCompilationWin'
+  exec 'bd '.expand('%:p')

@@ -1,0 +1,12 @@
+Given (Project file):
+  test-gradle-project/build.gradle
+
+Do (Open file):
+  gf
+
+Then (Project should be autoloaded):
+  let project = gradle#project#current()
+  Assert type(project) == type({}), "Current project should exist"
+  Assert expand('%:p:h') == project.root_folder, "Wrong project root"
+  AssertEqual 2, exists(':Gradle'), ":Gradle command should exist"
+  exec 'bd '.expand('%:p')

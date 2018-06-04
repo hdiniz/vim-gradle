@@ -1,0 +1,14 @@
+Execute (Disable autoload):
+  let g:vim_gradle_autoload = 0
+
+Given (Project file):
+  test-gradle-project/build.gradle
+
+Do (Open file):
+  gf
+
+Then (Project should not be loaded):
+  let project = gradle#project#current()
+  Assert type(project) == type(v:null), "Current project not v:null"
+  AssertNotEqual 2, exists(':Gradle'), ":Gradle command should not exist"
+  exec 'bd '.expand('%:p')

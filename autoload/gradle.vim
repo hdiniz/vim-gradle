@@ -13,9 +13,8 @@ function! gradle#load_project(root_project_folder) abort
         throw "Gradle command not found"
     endif
 
-    if exists(':AirlineRefresh')
-        exec 'AirlineRefresh'
-    endif
+    call gradle#utils#refresh_airline()
+
 endfunction
 
 function! s:define_buffer_cmds(root_project_folder)

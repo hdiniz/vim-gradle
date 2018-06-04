@@ -44,6 +44,8 @@ function! s:project.open_output_win(clean) dict
         setlocal buftype=nofile nobuflisted noswapfile nonumber nowrap filetype=gradle-build
         let self.build_buffer = l:bufnr
         let b:gradle_project_root = self.root_folder
+        let b:gradle_output_win = 1
+        call gradle#utils#refresh_airline()
     else
         let l:winnr = bufwinnr(self.build_buffer)
         if l:winnr == -1
@@ -69,6 +71,8 @@ function! s:project.compiler_callback(ch, msg) dict
         exec 'cad ' . self.build_buffer
         let &errorformat = l:errorformat
         job_stop(self.build_job)
+        call gradle#utils#refresh_airline()
+
         return
     endif
 endfunction
@@ -95,6 +99,8 @@ function! s:project.compile(cmd, args) dict
     let l:compile_options['out_buf'] = self.build_buffer
     let self.build_job = job_start(a:cmd + a:args, l:compile_options)
     wincmd p
+
+    call gradle#utils#refresh_airline()
 endfunction
 
 " }}}

@@ -57,7 +57,8 @@ function! s:project.open_output_win(clean) dict
             exec ':%d'
         endif
     endif
-    execute 'file ' . self.root_folder .':\ gradle\ '. join(self.last_compile_args, '\ ')
+    silent! 0file
+    execute 'silent! file ' . self.root_folder .':\ gradle\ '. join(self.last_compile_args, '\ ')
 endfunction
 
 function! s:project.cmd() dict
@@ -70,7 +71,7 @@ function! s:project.compiler_callback(ch, msg) dict
         let &errorformat = gradle#errorformat()
         exec 'cad ' . self.build_buffer
         let &errorformat = l:errorformat
-        job_stop(self.build_job)
+        call job_stop(self.build_job)
         call gradle#utils#refresh_airline()
 
         return
@@ -89,7 +90,7 @@ function! s:project.compile(cmd, args) dict
         \ 'err_mode': 'nl',
         \ 'in_io': 'null',
         \ 'out_io': 'buffer',
-        \ 'err_io': 'null',
+        \ 'err_io': 'out',
         \ 'stoponexit': 'term',
         \ 'callback': self.compiler_callback,
         \ }

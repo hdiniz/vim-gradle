@@ -1,5 +1,22 @@
-task('testVimCompile') {
+task testVimCompile {
     doLast {
         println 'testVimCompile'
     }
+}
+
+task testVimError {
+    dependsOn testVimCompile
+    doLast {
+        throw new TaskExecutionException( it,
+                new Exception( "Error message" )
+            )
+    }
+}
+
+task testVimSkipped {
+    dependsOn testVimCompile
+    onlyIf { false }
+}
+
+task testVimUpToDate {
 }

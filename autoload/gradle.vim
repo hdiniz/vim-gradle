@@ -17,12 +17,6 @@ function! gradle#load_project(root_project_folder) abort
 
 endfunction
 
-function! s:define_buffer_cmds(root_project_folder)
-    exec 'compiler gradle'
-    command! -buffer -nargs=+ -bang Gradle call s:compile(<bang>0, <f-args>)
-    command! -buffer GradleToggleOutputWin call gradle#project#current().toggle_output_win()
-endfunction
-
 function! gradle#cmd()
     if exists('g:vim_gradle_bin')
         return g:vim_gradle_bin
@@ -64,6 +58,10 @@ function! gradle#errorformat()
     return l:efm
 endfunction
 
+" }}}
+
+" {{{ Private functions
+
 function! s:make_cmd(make)
     let l:project = gradle#project#current()
     return [
@@ -78,9 +76,11 @@ function! s:make_cmd(make)
         \ ] + s:vim_gradle_properties(a:make)
 endfunction
 
-" }}}
-
-" {{{ Private functions
+function! s:define_buffer_cmds(root_project_folder)
+    exec 'compiler gradle'
+    command! -buffer -nargs=+ -bang Gradle call s:compile(<bang>0, <f-args>)
+    command! -buffer GradleToggleOutputWin call gradle#project#current().toggle_output_win()
+endfunction
 
 function! s:log(msg)
     echomsg a:msg

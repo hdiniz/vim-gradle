@@ -1,2 +1,2 @@
 #!/bin/sh
-vim '+Vader!*' && echo Success || echo Failure
+$VIMEXEC '+Vader!*' && echo Success || echo Failure

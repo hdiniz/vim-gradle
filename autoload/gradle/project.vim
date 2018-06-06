@@ -1,17 +1,45 @@
 let s:projects = {}
 
-" {{{ Project object API
-
 let s:project = {
     \ 'last_sync': localtime(),
     \ 'open_buffers': 0,
     \ 'build_job': 0,
     \ 'build_buffer': 0,
+    \ 'tests_buffer': 0,
+    \ 'quickfix_file': '',
+    \ 'gradle_log_file': '',
+    \ 'tests_file': '',
     \ 'last_compile_args': []
     \ }
 
+" {{{ Project API
+
+function! gradle#project#get(root_folder) abort
+    if has_key(s:projects, a:root_folder)
+        return get(s:projects, a:root_folder)
+    else
+        return s:create_project(a:root_folder)
+    endif
+endfunction
+
+function! gradle#project#current()
+    if exists('b:gradle_project_root')
+        return gradle#project#get(b:gradle_project_root)
+    else
+        return v:null
+    endif
+endfunction
+
+" }}}
+
+" {{{ Project Object API
+
 function! s:project.is_building() dict
-    return type(self.build_job) == 8 && job_status(self.build_job) == "run"
+    if has('nvim')
+        return self.build_job != 0
+    else
+        return type(self.build_job) == 8
+    endif
 endfunction
 
 function! s:project.open_file(path) dict
@@ -38,27 +66,66 @@ function! s:project.close_output_win() dict
 endfunction
 
 function! s:project.open_output_win(clean) dict
-    if self.build_buffer == 0
-        below 10new
-        let l:bufnr = bufnr('%')
-        setlocal buftype=nofile nobuflisted noswapfile nonumber nowrap filetype=gradle-build
-        let self.build_buffer = l:bufnr
-        let b:gradle_project_root = self.root_folder
-        let b:gradle_output_win = 1
-        call gradle#utils#refresh_airline()
-    else
-        let l:winnr = bufwinnr(self.build_buffer)
-        if l:winnr == -1
-            exec 'below 10sp | b' . self.build_buffer
-        else
-            exec l:winnr.'wincmd w'
-        endif
-        if a:clean
-            exec ':%d'
-        endif
+
+    let l:opts = {
+        \ 'buffer_nr': self.build_buffer,
+        \ 'filetype': 'gradle-build',
+        \ 'position': 'belowright',
+        \ 'size': '10',
+        \ 'relative_to': self.tests_buffer,
+        \ 'alternative_name': self.root_folder .':\ gradle\ '. join(self.last_compile_args, '\ '),
+        \ }
+
+    let self.build_buffer = gradle#utils#create_win_for(l:opts)
+    let b:gradle_project_root = self.root_folder
+    let b:gradle_output_win = 1
+    call gradle#define_buffer_cmds()
+    call gradle#utils#refresh_airline()
+
+    if a:clean
+        exec ':%d'
     endif
-    silent! 0file
-    execute 'silent! file ' . self.root_folder .':\ gradle\ '. join(self.last_compile_args, '\ ')
+
+endfunction
+
+function! s:project.toggle_tests_win() dict
+    if bufwinnr(self.tests_buffer) != -1
+        call self.close_tests_win()
+    else
+        call self.open_tests_win(0)
+    endif
+endfunction
+
+function! s:project.close_tests_win() dict
+    let l:winnr = bufwinnr(self.tests_buffer)
+    if l:winnr != -1
+        exec l:winnr.'wincmd c'
+    endif
+endfunction
+
+function! s:project.open_tests_win(clean) dict
+    if a:clean && self.tests_buffer != 0
+        exec 'bd! '.self.tests_buffer
+        let self.tests_buffer = 0
+    endif
+    let l:opts = {
+        \ 'buffer_nr': self.tests_buffer,
+        \ 'filetype': 'gradle-test-result',
+        \ 'position': 'belowright',
+        \ 'size': '10',
+        \ 'relative_to': self.build_buffer,
+        \ 'modifiers': 'nomodifiable',
+        \ 'filename': self.tests_file,
+        \ 'alternative_name': self.root_folder .':\ test\ results\',
+        \ }
+
+    if filereadable(self.tests_file)
+        let self.tests_buffer = gradle#utils#create_win_for(l:opts)
+        let b:gradle_project_root = self.root_folder
+        let b:gradle_tests_win = 1
+        call gradle#define_buffer_cmds()
+        call gradle#utils#refresh_airline()
+    endif
 endfunction
 
 function! s:project.cmd() dict
@@ -66,16 +133,24 @@ function! s:project.cmd() dict
 endfunction
 
 function! s:project.compiler_callback(ch, msg) dict
-    if string(a:msg) =~ 'DETACH'
-        let l:errorformat = &errorformat
-        let &errorformat = gradle#errorformat()
-        exec 'cad ' . self.build_buffer
-        let &errorformat = l:errorformat
-        call job_stop(self.build_job)
-        call gradle#utils#refresh_airline()
+endfunction
 
-        return
-    endif
+function! s:project.compiler_exited(job, status) dict
+    call self.compilation_done()
+endfunction
+
+function! s:project.compilation_done() dict
+    let l:errorformat = &errorformat
+    let &errorformat = "%t:\ %f:%l:%c\ %m,%t:\ %f:%l\ %m,%t:\ %f\ %m"
+    exec 'cgetfile ' . self.quickfix_file
+    let &errorformat = l:errorformat
+    let self.build_job = 0
+    call self.open_tests_win(1)
+    call gradle#utils#refresh_airline()
+endfunction
+
+
+function! s:project.compiler_out(ch, msg) dict
 endfunction
 
 function! s:project.compile(cmd, args) dict
@@ -84,44 +159,48 @@ function! s:project.compile(cmd, args) dict
         return
     endif
 
-    let l:compile_options = {
-        \ 'in_mode': 'raw',
-        \ 'out_mode': 'nl',
-        \ 'err_mode': 'nl',
-        \ 'in_io': 'null',
-        \ 'out_io': 'buffer',
-        \ 'err_io': 'out',
-        \ 'stoponexit': 'term',
-        \ 'callback': self.compiler_callback,
-        \ }
+    if has('nvim')
+        let l:compile_options = {
+            \ 'on_stdout': function('s:nvim_job_out'),
+            \ 'on_stderr': function('s:nvim_job_out'),
+            \ 'on_exit': function('s:nvim_job_exit'),
+            \ 'root_folder': self.root_folder,
+            \ }
+    else
+        let l:compile_options = {
+            \ 'in_mode': 'raw',
+            \ 'out_mode': 'nl',
+            \ 'err_mode': 'nl',
+            \ 'in_io': 'null',
+            \ 'out_io': 'buffer',
+            \ 'err_io': 'out',
+            \ 'stoponexit': 'term',
+            \ 'out_cb': self.compiler_out,
+            \ 'exit_cb': self.compiler_exited,
+            \ 'callback': self.compiler_callback,
+            \ }
+    endif
 
     let self.last_compile_args = a:args
+    let self.quickfix_file = tempname()
+    let self.gradle_log_file = tempname()
+    let self.tests_file = tempname()
+    let l:additional_args = [
+        \ '-Pvim.gradle.tests.file='.self.tests_file,
+        \ '-Pvim.gradle.quickfix.file='.self.quickfix_file,
+        \ '-Pvim.gradle.log.file='.self.gradle_log_file
+        \ ]
+    cclose
     call self.open_output_win(1)
     let l:compile_options['out_buf'] = self.build_buffer
-    let self.build_job = job_start(a:cmd + a:args, l:compile_options)
+    if has('nvim')
+        let self.build_job = jobstart(a:cmd + a:args + l:additional_args, l:compile_options)
+    else
+        let self.build_job = job_start(a:cmd + a:args + l:additional_args, l:compile_options)
+    endif
     wincmd p
 
     call gradle#utils#refresh_airline()
-endfunction
-
-" }}}
-
-" {{{ Project API
-
-function! gradle#project#get(root_folder) abort
-    if has_key(s:projects, a:root_folder)
-        return get(s:projects, a:root_folder)
-    else
-        return s:create_project(a:root_folder)
-    endif
-endfunction
-
-function! gradle#project#current()
-    if exists('b:gradle_project_root')
-        return gradle#project#get(b:gradle_project_root)
-    else
-        return v:null
-    endif
 endfunction
 
 " }}}
@@ -164,3 +243,16 @@ endfunction
 
 "}}}
 
+"{{{ NeoVim
+
+" NeoVim uses jobstart {opts} as `self` dict in callback
+function! s:nvim_job_out(ch, msg, event) dict
+    call nvim_buf_set_lines(self.out_buf, -1, -1, v:true, a:msg)
+endfunction
+
+function! s:nvim_job_exit(job, data, event) dict
+    let l:project = gradle#project#get(self.root_folder)
+    call l:project.compilation_done()
+endfunction
+
+"}}}

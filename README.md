@@ -14,11 +14,9 @@ Some commands (`:GradleInit [args]`, `:GradleWrapper [args]`) will require a Gra
 ## Usage
 
 By default, you Gradle project will be loaded you open vim under a Gradle project. See |autoload|.
-When the project is detected, the `:Gradle[!] <args>` command becomes available:
+When the project is detected, the `:Gradle <args>` command becomes available:
 
-    :Gradle[!] compile
-
-When executed with a `bang (!)`, the compilation is executed synchronously as if using `:make`. Otherwise the compilation is asynchronous and a output window is open.
+    :Gradle compile
 
 Erros detected during built populate vim's quickfix window:
 
@@ -28,11 +26,11 @@ Erros detected during built populate vim's quickfix window:
 
 ### _:Gradle[!] {args}_
 
-When executed with the `bang (!)`, the compilation is synchronous and equivalent to running `:make {args}`.
-Otherwise the build is started asynchronously and the output is redirected to an output window.
+Compiles the project passing {args} to the Gradle binary.
+The build is started asynchronously and the output is
+redirected to a output window.
 
-A default `errorformat` is provided so build errors can be listed on vim's quickfix.
-_TODO: The default errorformat can be overriden or enhanced by vim-gradle extensions._
+`quickfix` errors are provided by the Gradle init script.
 
 ### _:GradleLoad_
 
@@ -93,13 +91,34 @@ function! gradle#extensions#{extension_name}#build_scripts()
     return [s:gradle_folder_path . 'extension_name.gradle']
 endfunction
 ```
-
 This can be used to define custom tasks and plugins on the project. The references scripts will load after the rootProject has been evaluated.
 
-TODO: Allow extensions to provide a custom `errorformat`
+### Java Extension Example
+
+```groovy
+def errorListener = {
+    def match = it =~ /([^:]+):(\d+):(\d*) (?:(e)rror|(w)arning): (.+)/
+    if (match.size() > 0) {
+        // Log to vim temp file
+        vimLog("javac quickfix: $it")
+        // Populate vim quickfix (type, file, line, column, message)
+        vimQuickfix(match[0][5], match[0][1], match[0][2], match[0][3], match[0][6])
+    }
+} as StandardOutputListener
+
+allprojects { project ->
+    project.afterEvaluate {
+        tasks.withType(JavaCompile).each {
+            // Enable javac lint options
+            it.options.compilerArgs << "-Xlint:all"
+            // Capture javac stderr
+            it.logging.addStandardErrorListener(errorListener)
+        }
+    }
+}
+```
 
 ## License
 
 MIT
-
 

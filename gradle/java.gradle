@@ -1,0 +1,21 @@
+def errorListener = {
+    def match = it =~ /([^:]+):(\d+):(\d*) (?:(e)rror|(w)arning): (.+)/
+    if (match.size() > 0) {
+        // Log to vim temp file
+        vimLog("javac quickfix: $it")
+        // Populate vim quickfix (type, file, line, column, message)
+        vimQuickfix(match[0][5], match[0][1], match[0][2], match[0][3], match[0][6])
+    }
+} as StandardOutputListener
+
+allprojects { project ->
+    project.afterEvaluate {
+        tasks.withType(JavaCompile).each {
+            vimLog("Project $project has JavaCompile task")
+            // Enable javac lint options
+            it.options.compilerArgs << "-Xlint:all"
+            // Capture javac stderr
+            it.logging.addStandardErrorListener(errorListener)
+        }
+    }
+}

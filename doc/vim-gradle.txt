@@ -76,17 +76,13 @@ Overrides $GRADLE_HOME.
 =================================================================
 4. Commands                                 *vim-gradle-commands*
 
-:Gradle[!] {args}
+:Gradle {args}
 
-When executed with the bang (!), the process is synchronous and
-equivalent to running :make {args}. See |make|.
-Otherwise the build is started asynchronously and the output is
-redirected to a temporary buffer.
+Compiles the project passing {args} to the Gradle binary.
+The build is started asynchronously and the output is
+redirected to a output window.
 
-vim-gradle provides a default |errorformat| so build errors can
-be listed on vim |quickfix|. The default errorformat can be
-overriden or enhanced by vim-gradle extensions.
-See |vim-gradle-errorformat|.
+|quickfix| errors are provided by the Gradle init script.
 
 :GradleLoad
 
@@ -120,7 +116,39 @@ The search order for the Gradle binary is as follows:
 =================================================================
 6. Extensions                             *vim-gradle-extensions*
 
-TODO
+Extensions can hook into Gradle init scripts by defining the function:
+
+    `[plugin]/autoload/gradle/extensions/{extension_name}.vim`
+
+    let s:gradle_folder_path = escape( expand( '<sfile>:p:h:h:h:h' ), '\' ) . '/gradle/'
+    function! gradle#extensions#{extension_name}#build_scripts()
+        return [s:gradle_folder_path . 'extension_name.gradle']
+    endfunction
+
+This can be used to define custom tasks and plugins on the project. The references scripts will load after the rootProject has been evaluated.
+
+Java Extension Example
+
+def errorListener = {
+    def match = it =~ /([^:]+):(\d+):(\d*) (?:(e)rror|(w)arning): (.+)/
+    if (match.size() > 0) {
+        // Log to vim temp file
+        vimLog("javac quickfix: $it")
+        // Populate vim quickfix (type, file, line, column, message)
+        vimQuickfix(match[0][5], match[0][1], match[0][2], match[0][3], match[0][6])
+    }
+} as StandardOutputListener
+
+allprojects { project ->
+    project.afterEvaluate {
+        tasks.withType(JavaCompile).each {
+            // Enable javac lint options
+            it.options.compilerArgs << "-Xlint:all"
+            // Capture javac stderr
+            it.logging.addStandardErrorListener(errorListener)
+        }
+    }
+}
 
 =================================================================
 7. airline                                   *vim-gradle-airline*

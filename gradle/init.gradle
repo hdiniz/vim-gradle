@@ -2,12 +2,19 @@ allprojects { project ->
 
     project.afterEvaluate {
         if (project == rootProject) {
+            createQuickfixFile()
+            createLogFile()
+            createTestsFile()
             createRootTasks()
 
+            println "VIM log: " + this.ext.vimLogFile
+            println "VIM quickfix: " + this.ext.vimQuickfixFile
+            println "VIM test: " + this.ext.vimTestsFile
             println vimProperty("gradle.build.welcome", "Built with VIM Gradle Plugin")
 
             if (vimPropertyEnabled("gradle.enable.rtp")) {
-                Eval.me(vimProperty("apply", '[]')).each {
+                Eval.me(vimProperty("gradle.apply", '[]')).each {
+                    vimLog("Applying " + it)
                     apply from: it
                 }
             }
@@ -15,17 +22,32 @@ allprojects { project ->
     }
 }
 
-def createRootTasks() {
-    rootProject.task("vimCheck") {
-        doLast {
-            if (vimPropertyEnabled("gradle.enable.rtp")) {
-                println "VIM RTP Enabled"
-                Eval.me(vimProperty("apply", '[]')).each {
-                    println "Enabled vim-gradle extension script: $it"
-                }
-            }
-            println "Ok"
-        }
+// {{{ VIM API
+
+ext {
+    vimTestResult = this.&vimTestResult
+    vimQuickfix = this.&vimQuickfix
+    vimLog = this.&vimLog
+    hasVimProperty = this.&hasVimProperty
+    vimPropertyEnabled = this.&vimPropertyEnabled
+    vimProperty = this.&vimProperty
+}
+
+def vimLog(message) {
+    ext.vimLogFile.append("$message\n")
+}
+
+def vimTestResult(message) {
+    ext.vimTestsFile.append("$message\n")
+}
+
+def vimQuickfix(type, file, line, col, message) {
+    if (col != null && !col.isEmpty()) {
+        ext.vimQuickfixFile.append "$type: $file:$line:$col $message\n"
+    } else if (line != null && !line.isEmpty()) {
+        ext.vimQuickfixFile.append "$type: $file:$line $message\n"
+    } else {
+        ext.vimQuickfixFile.append "$type: $file $message\n"
     }
 }
 
@@ -45,4 +67,37 @@ def vimProperty(propertyName, defaultValue) {
     }
 }
 
+// }}}
+
+// {{{ Private functions
+
+def createRootTasks() {
+    rootProject.task("vimCheck") {
+        doLast {
+            if (vimPropertyEnabled("gradle.enable.rtp")) {
+                println "VIM RTP Enabled"
+                Eval.me(vimProperty("apply", '[]')).each {
+                    println "Enabled vim-gradle extension script: $it"
+                }
+            }
+            println "Ok"
+        }
+    }
+}
+
+def createTestsFile() {
+    ext.vimTestsFile = new File(vimProperty("gradle.tests.file", ""))
+}
+
+def createQuickfixFile() {
+    ext.vimQuickfixFile = new File(vimProperty("gradle.quickfix.file", ""))
+    ext.vimQuickfixFile  << ""
+}
+
+def createLogFile() {
+    ext.vimLogFile = new File(vimProperty("gradle.log.file", ""))
+    ext.vimLogFile << ""
+}
+
+// }}}
 

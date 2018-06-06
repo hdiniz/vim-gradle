@@ -1,20 +1,26 @@
 let s:script_path = tolower(resolve(expand('<sfile>:p:h')))
 let s:gradle_folder_path = escape( expand( '<sfile>:p:h:h' ), '\' ) . '/gradle'
 
+let s:default_vim_gradle_properties = {
+    \ 'vim.gradle.enable.rtp': '1',
+    \ 'vim.gradle.build.welcome': 'Built with vim-gradle plugin'
+    \ }
+
+let s:default_vim_gradle_extensions = [
+    \ '"'.s:gradle_folder_path.'/java.gradle"',
+    \ '"'.s:gradle_folder_path.'/kotlin.gradle"',
+    \ '"'.s:gradle_folder_path.'/test.gradle"',
+    \ ]
+
 " {{{ Gradle API
 
 function! gradle#load_project(root_project_folder) abort
-
     let l:project = gradle#project#get(a:root_project_folder)
 
-    if l:project.cmd() != ''
-        call s:define_buffer_cmds(a:root_project_folder)
-    else
-        throw "Gradle command not found"
+    if type(l:project) == type({})
+        call gradle#define_buffer_cmds()
+        call gradle#utils#refresh_airline()
     endif
-
-    call gradle#utils#refresh_airline()
-
 endfunction
 
 function! gradle#cmd()
@@ -22,7 +28,7 @@ function! gradle#cmd()
         return g:vim_gradle_bin
     endif
 
-    if finddir(s:gradle_home()) && executable(s:gradle_home() . '/bin/gradle')
+    if executable(s:gradle_home() . '/bin/gradle')
         return s:gradle_home() . '/bin/gradle'
     endif
 
@@ -31,38 +37,26 @@ function! gradle#cmd()
     endif
 
     return ''
-
 endfunction
 
-" }}}
-
-" {{{ VIM Compiler API
-
-function! gradle#makeprg()
-    return substitute(substitute(join(s:make_cmd(1), ' '), ' ', '\\ ', 'g'), '"', '\\"', 'g')
-endfunction
-
-function! gradle#errorformat()
-    let l:efm = "%-G%[\\\s]%#,"
-    let l:efm .= "lint:\\\ %tarning\\\ %f:%l:%c\\\ %m,"     "lint
-    let l:efm .= "lint:\\\ %trror\\\ %f:%l:%c\\\ %m,"       "lint
-    let l:efm .= "%+G%m\\\ FAILED,"                         "task failed
-    let l:efm .= "%+GBUILD\\\ FAILED,"                      "build failed
-    let l:efm .= "%-G:%.%#,"                                "ignore task list
-    let l:efm .= "%-GNote:%.%#,"                            "ignore Notes
-    let l:efm .= "%t:\\\ warning:\\\ %m,"                   "kotlin general warning
-    let l:efm .= "%t:\\\ %f:\\\ (%l\\\\,\\\ %c):\\\ %m,"    "kotlin
-    let l:efm .= "%t:\\\ %f:%l:\\\ %m,"                     "kotlin
-    let l:efm .= "%t:\\\ %f\\\ %m,"                         "kotlin
-    let l:efm .=  "%-G%.%#"                                 "ignore rest
-    return l:efm
+function! gradle#define_buffer_cmds()
+    command! -buffer -nargs=+ Gradle call s:compile(<f-args>)
+    command! -buffer GradleToggleOutputWin call gradle#project#current().toggle_output_win()
+    command! -buffer GradleToggleTestsWin call gradle#project#current().toggle_tests_win()
 endfunction
 
 " }}}
 
 " {{{ Private functions
 
-function! s:make_cmd(make)
+function! s:compile(...) abort
+    let l:project = gradle#project#current()
+
+    let l:cmd = s:make_cmd()
+    call l:project.compile(l:cmd, a:000)
+endfunction
+
+function! s:make_cmd()
     let l:project = gradle#project#current()
     return [
         \ l:project.cmd(),
@@ -70,20 +64,10 @@ function! s:make_cmd(make)
         \ 'plain',
         \ '-I',
         \ s:gradle_folder_path . '/init.gradle',
-        \ "-Pvim.apply=".s:extension_scripts(a:make),
+        \ "-Pvim.gradle.apply=".s:extension_scripts(),
         \ '-b',
         \ l:project.build_file
-        \ ] + s:vim_gradle_properties(a:make)
-endfunction
-
-function! s:define_buffer_cmds(root_project_folder)
-    exec 'compiler gradle'
-    command! -buffer -nargs=+ -bang Gradle call s:compile(<bang>0, <f-args>)
-    command! -buffer GradleToggleOutputWin call gradle#project#current().toggle_output_win()
-endfunction
-
-function! s:log(msg)
-    echomsg a:msg
+        \ ] + s:vim_gradle_properties()
 endfunction
 
 function! s:gradle_home()
@@ -96,39 +80,12 @@ function! s:gradle_home()
     endif
 endfunction
 
-function! s:compile(async, ...) abort
-    let l:project = gradle#project#current()
-
-    let l:args = join(a:000, ' ')
-    if a:async != ''
-        call s:log('Compiling: ' . l:args)
-        exec 'make ' . join(a:000, ' ')
-    else
-        let l:cmd = s:make_cmd(0)
-        call l:project.compile(l:cmd, a:000)
-    endif
-endfunction
-
-" }}}
-
-" {{{ Extension functions
-
-" https://github.com/vim-airline/vim-airline/blob/master/autoload/airline/extensions.vim
-
-let s:default_vim_gradle_properties = {
-    \ 'vim.gradle.enable.rtp': '1',
-    \ 'vim.gradle.build.welcome': 'Built with vim-gradle plugin'
-    \ }
-
-function! s:vim_gradle_properties(make)
+function! s:vim_gradle_properties()
 
     let l:args = []
     for l:key in keys(s:default_vim_gradle_properties)
         let l:global_key = substitute(l:key, "\\.", "_", "g")
         let l:value = get(g:, l:global_key, get(s:default_vim_gradle_properties, l:key))
-        if a:make
-            let l:value = substitute(l:value, ' ', '\\\\ ', 'g')
-        endif
         let l:arg = '-P'.l:key.'='.l:value
         let l:args += [l:arg]
     endfor
@@ -136,8 +93,9 @@ function! s:vim_gradle_properties(make)
     return l:args
 endfunction
 
-function! s:extension_scripts(make)
-    let l:scripts = []
+" https://github.com/vim-airline/vim-airline/blob/master/autoload/airline/extensions.vim
+function! s:extension_scripts()
+    let l:scripts =  copy(s:default_vim_gradle_extensions)
     for l:file in split(globpath(&rtp, 'autoload/gradle/extensions/*.vim'), '\n')
         if stridx(tolower(resolve(fnamemodify(file, ':p'))), s:script_path) < 0
             \ && stridx(tolower(fnamemodify(file, ':p')), s:script_path) < 0
@@ -150,11 +108,7 @@ function! s:extension_scripts(make)
         endtry
       endif
     endfor
-    if a:make
-        return "'[".join(l:scripts, ',')."]'"
-    else
-        return "[".join(l:scripts, ',')."]"
-    endif
+    return "[".join(l:scripts, ',')."]"
 endfunction
 
 " }}}

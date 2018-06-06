@@ -38,5 +38,6 @@ Then (Output window is open and focused):
   let output_window = bufwinnr(project.build_buffer)
   AssertNotEqual -1, output_window, "Output window should be open"
   AssertEqual winnr(), output_window, "Output window should be in focus"
+  AssertEqual 2, exists(':Gradle'), ":Gradle command should exist"
 
 Include: include/cleanup.vader

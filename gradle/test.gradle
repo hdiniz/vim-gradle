@@ -1,0 +1,75 @@
+def padLeft(n, str) {
+    if (n <= 0) return str
+    def builder = new StringBuilder(n)
+    n.times {builder.append(" ")}
+    return builder.toString() + str
+}
+
+def padding = 4
+
+allprojects { project ->
+    project.afterEvaluate {
+        tasks.withType(Test).each {
+            it.ext.testOutputPad = -padding
+            it.ext.suiteResult = new HashMap<String, String>()
+
+            it.addTestListener( [
+                beforeSuite: { desc ->
+                    // skip gradle suites
+                    if (desc.className == null && desc.parent != null) return
+                    it.testOutputPad += padding
+                    def suite = desc.className != null ? desc.className : 'rootSuite'
+                    it.suiteResult[suite] = ""
+                },
+                afterSuite: { desc, result ->
+                    // skip gradle suites
+                    if (desc.className == null && desc.parent != null) return
+                    it.testOutputPad -= padding
+                    def suite = desc.parent == null ? 'rootSuite' : desc.className
+
+                    def suiteDesc = "${desc.className == null ? '' : desc.className}" +
+                        "${desc.className == null ? '' : '@' + desc.className + ' '}"
+
+                    def suiteTitleLine = padLeft(it.testOutputPad, "${suiteDesc}" +
+                            "${result.successfulTestCount}/${result.testCount} " +
+                            "${result.resultType} ${result.skippedTestCount} SKIPPED\n")
+                    def suiteResults = it.ext.suiteResult[suite]
+
+                    if (desc.parent == null) {
+                        vimTestResult(suiteTitleLine + suiteResults)
+                    } else {
+                        def parentSuite = desc.parent.className == null ? 'rootSuite' : desc.parent.className
+                        it.ext.suiteResult[parentSuite] += suiteTitleLine + suiteResults
+                    }
+                },
+                beforeTest: { desc ->
+                },
+                afterTest: { desc, result ->
+                    def suite = desc.parent.className != null ? desc.parent.className : 'rootSuite'
+                    def testTitle = "${desc.name}@${desc.className}: ${result.resultType}\n"
+                    it.ext.suiteResult[suite] += padLeft(it.testOutputPad, testTitle)
+
+                    if (result.resultType == TestResult.ResultType.FAILURE) {
+                        def assertionPoint = result.exception.stackTrace.findIndexOf {
+                            it.className == desc.className
+                        }
+                        it.ext.suiteResult[suite] +=
+                            padLeft(it.testOutputPad + 4, "> ${result.exception.class.name}")
+                        if (result.exception.message != null) {
+                            it.ext.suiteResult[suite] +=
+                                ": ${result.exception.message}\n"
+                        } else {
+                            it.ext.suiteResult[suite] += "\n"
+                        }
+                        if (assertionPoint != -1) {
+                            def trace = result.exception.stackTrace[assertionPoint]
+                            it.ext.suiteResult[suite] +=
+                                padLeft(it.testOutputPad + 4, "> @${trace.fileName}:${trace.lineNumber}\n")
+                        }
+                    }
+                },
+            ] as TestListener)
+        }
+    }
+}
+

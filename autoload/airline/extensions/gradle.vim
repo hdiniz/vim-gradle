@@ -4,6 +4,8 @@ function! airline#extensions#gradle#condition_build()
     let l:project_root = get(b:, 'gradle_project_root', '')
     if l:project_root != ''
         return gradle#project#current().is_building()
+    else
+        return 0
     endif
 endfunction
 

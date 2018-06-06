@@ -1,0 +1,33 @@
+def errorListener = {
+    def match = it =~ /^(\w): ([^:]+): \((\d+), (\d+)\): (.+)/
+    if (match.size() > 0) {
+        vimLog("kotlinc quickfix: $it")
+        vimQuickfix(match[0][1], match[0][2], match[0][3], match[0][4], match[0][5])
+    }
+} as StandardOutputListener
+
+allprojects { project ->
+    project.afterEvaluate {
+        // Android Gradle plugin adds tasks later...
+        if (hasPlugin(project, "kotlin-android")) {
+            vimLog("Project $project has kotlin-android plugin")
+            project.tasks.whenTaskAdded {
+                if (it in AbstractCompile.class) {
+                    it.logging.addStandardOutputListener(errorListener)
+                    it.logging.addStandardErrorListener(errorListener)
+                }
+            }
+        } else if (hasPlugin(project, "kotlin")) {
+            vimLog("Project $project has kotlin plugin")
+            project.tasks.withType(AbstractCompile) {
+                it.logging.addStandardOutputListener(errorListener)
+                it.logging.addStandardErrorListener(errorListener)
+            }
+        }
+    }
+}
+
+def hasPlugin(project, plugin) {
+    return project.getPlugins().hasPlugin(plugin)
+}
+

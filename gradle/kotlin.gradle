@@ -23,7 +23,13 @@ allprojects { project ->
                 it.logging.addStandardOutputListener(errorListener)
                 it.logging.addStandardErrorListener(errorListener)
             }
-        }
+        } else if (hasPlugin(project, "kotlin-multiplatform")) {
+            vimLog("Project $project has kotlin multiplatform plugin")
+            project.tasks.withType(AbstractCompile) {
+                it.logging.addStandardOutputListener(errorListener)
+                it.logging.addStandardErrorListener(errorListener)
+            }
+	}
     }
 }
 

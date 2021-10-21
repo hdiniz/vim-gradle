@@ -40,7 +40,7 @@ function! gradle#cmd()
 endfunction
 
 function! gradle#define_buffer_cmds()
-    command! -buffer -nargs=+ Gradle call s:compile(<f-args>)
+    command! -buffer -nargs=+ Gradle w | call s:compile(<f-args>)
     command! -buffer GradleToggleOutputWin call gradle#project#current().toggle_output_win()
     command! -buffer GradleToggleTestsWin call gradle#project#current().toggle_tests_win()
 endfunction

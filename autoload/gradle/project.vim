@@ -248,6 +248,7 @@ endfunction
 " NeoVim uses jobstart {opts} as `self` dict in callback
 function! s:nvim_job_out(ch, msg, event) dict
     call nvim_buf_set_lines(self.out_buf, -1, -1, v:true, a:msg)
+    call nvim_win_set_cursor(bufwinid(self.out_buf), [nvim_buf_line_count(self.out_buf), 0])
 endfunction
 
 function! s:nvim_job_exit(job, data, event) dict

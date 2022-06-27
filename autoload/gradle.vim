@@ -65,8 +65,8 @@ function! s:make_cmd()
         \ '-I',
         \ s:gradle_folder_path . '/init.gradle',
         \ "-Pvim.gradle.apply=".s:extension_scripts(),
-        \ '-b',
-        \ l:project.build_file
+        \ '-p',
+        \ l:project.build_folder
         \ ] + s:vim_gradle_properties()
 endfunction
 

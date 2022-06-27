@@ -213,7 +213,8 @@ function! s:create_project(root_folder) abort
         \ 'root_folder': a:root_folder,
         \ 'wrapper': s:wrapper(a:root_folder),
         \ 'last_sync': localtime(),
-        \ 'build_file': s:build_file(a:root_folder)
+        \ 'build_file': s:build_file(a:root_folder),
+        \ 'build_folder': s:build_folder(a:root_folder)
         \ })
 
     let s:projects[a:root_folder] = l:project
@@ -241,6 +242,14 @@ function! s:build_file(root_folder) abort
     throw 'Build file for project ' . a:root_folder  . ' not found'
 endfunction
 
+function! s:build_folder(root_folder) abort
+    for l:file in ['/build.gradle', '/build.gradle.kts']
+        if filereadable(a:.root_folder . l:file)
+            return a:root_folder
+        endif
+    endfor
+    throw 'Build folder for project ' . a:root_folder  . ' not found'
+endfunction
 "}}}
 
 "{{{ NeoVim
